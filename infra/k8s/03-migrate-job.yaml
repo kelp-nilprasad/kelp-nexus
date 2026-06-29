@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kelp-migrate
+  namespace: kelp-nexus
+  annotations:
+    # Run before rolling out the API. With Argo/Helm use a pre-install/pre-upgrade hook.
+    "kelp.dev/run": "on-deploy"
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: ghcr.io/kelp/kelp-nexus-api:latest
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: kelp-config
+            - secretRef:
+                name: kelp-secrets

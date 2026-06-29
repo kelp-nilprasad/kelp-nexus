@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kelp-config
+  namespace: kelp-nexus
+data:
+  ENVIRONMENT: "production"
+  API_V1_PREFIX: "/api/v1"
+  CORS_ORIGINS: '["https://kelp.internal.example.com"]'
+  AZURE_BLOB_CONTAINER: "reports"
+  DEV_LOGIN: "false"
+  ENABLE_AI: "false"
+  AI_MODEL: "claude-opus-4-8"
+  EMBEDDING_DIM: "1536"
+  API_INTERNAL_URL: "http://kelp-api:8000"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kelp-secrets
+  namespace: kelp-nexus
+type: Opaque
+stringData:
+  # Replace these in a real cluster (use a sealed-secret / external secret store).
+  DATABASE_URL: "postgresql+psycopg://kelp:kelp@kelp-postgres:5432/kelp_nexus"
+  JWT_SECRET: "REPLACE_WITH_STRONG_SECRET"
+  AZURE_STORAGE_CONNECTION_STRING: "REPLACE_WITH_AZURE_BLOB_CONNECTION_STRING"
+  AZURE_TENANT_ID: ""
+  AZURE_CLIENT_ID: ""
+  AZURE_CLIENT_SECRET: ""
+  ANTHROPIC_API_KEY: ""
+  POSTGRES_PASSWORD: "kelp"

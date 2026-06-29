@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kelp-ingress
+  namespace: kelp-nexus
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m" # allow large HTML/PDF uploads
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - kelp.internal.example.com
+      secretName: kelp-tls
+  rules:
+    - host: kelp.internal.example.com
+      http:
+        paths:
+          # API first so /api/* doesn't fall through to the web app.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: kelp-api
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kelp-web
+                port:
+                  number: 3000

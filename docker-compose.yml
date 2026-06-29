@@ -1,0 +1,69 @@
+name: kelp-nexus
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: kelp
+      POSTGRES_PASSWORD: kelp
+      POSTGRES_DB: kelp_nexus
+    ports:
+      # Override KELP_DB_PORT if 5432 is taken locally (e.g. KELP_DB_PORT=5544).
+      # In-compose traffic uses the `db` service name on 5432 regardless.
+      - "${KELP_DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kelp -d kelp_nexus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    # skipApiVersionCheck: the Azure SDK negotiates a newer API version than the
+    # pinned Azurite image lists; the wire protocol is compatible.
+    command: "azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --skipApiVersionCheck"
+    ports:
+      - "10000:10000"
+    volumes:
+      - azurite:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    depends_on:
+      db:
+        condition: service_healthy
+      azurite:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql+psycopg://kelp:kelp@db:5432/kelp_nexus
+      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+      JWT_SECRET: dev-insecure-change-me
+      DEV_LOGIN: "true"
+      ENVIRONMENT: development
+      CORS_ORIGINS: '["http://localhost:3000"]'
+    ports:
+      - "8000:8000"
+    # Migrate, seed, then serve.
+    command: >
+      sh -c "alembic upgrade head &&
+             python -m app.db.seed &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.web
+    depends_on:
+      - api
+    environment:
+      API_INTERNAL_URL: http://api:8000
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+  azurite:
