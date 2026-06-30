@@ -9,6 +9,7 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
+  FolderTree,
   Plus,
   FileText,
 } from "lucide-react";
@@ -69,10 +70,18 @@ export function CollectionTree() {
     });
 
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+    <Card className="overflow-hidden">
+      <CardHeader className="flex-row items-center justify-between space-y-0 bg-gradient-to-r from-primary/10 to-transparent pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <Folder className="h-5 w-5 text-primary" /> Collections
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <FolderTree className="h-4 w-4" />
+          </span>
+          Collections
+          {!!collections?.length && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
+              {collections.length}
+            </span>
+          )}
         </CardTitle>
         <Button variant="outline" size="sm" onClick={() => setCreatingRoot((v) => !v)}>
           <FolderPlus className="h-4 w-4" /> New
@@ -101,10 +110,15 @@ export function CollectionTree() {
 
         {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
         {!isLoading && !tree.length && (
-          <p className="text-sm text-muted-foreground">
-            No collections yet. Click <span className="font-medium">New</span> to create your first
-            folder.
-          </p>
+          <div className="flex flex-col items-center gap-2 py-6 text-center">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <FolderOpen className="h-5 w-5" />
+            </span>
+            <p className="text-sm text-muted-foreground">
+              No collections yet. Click{" "}
+              <span className="font-medium text-foreground">New</span> to create your first folder.
+            </p>
+          </div>
         )}
 
         {tree.map((node) => (

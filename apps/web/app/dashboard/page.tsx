@@ -8,13 +8,10 @@ import {
   Eye,
   Star,
   MessageSquare,
-  Layers,
-  Hash,
   FileText,
   Users,
   BookCheck,
   ArrowRight,
-  FolderTree,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ReportSummary } from "@/lib/types";
@@ -22,7 +19,6 @@ import { ReportCard } from "@/components/report-card";
 import { CollectionTree } from "@/components/collection-tree";
 import { SearchAutocomplete } from "@/components/search-autocomplete";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { cn, relativeTime } from "@/lib/utils";
 
@@ -167,82 +163,17 @@ function ListCard({
 export default function DashboardPage() {
   const { data, isLoading } = useQuery({ queryKey: ["dashboard"], queryFn: api.dashboard });
   const { data: stats } = useQuery({ queryKey: ["analytics"], queryFn: api.analytics });
-  const { data: techCloud } = useQuery({ queryKey: ["tech-cloud"], queryFn: api.technologyCloud });
   const { data: favorites } = useQuery({ queryKey: ["favorites"], queryFn: api.favorites });
 
   if (isLoading) return <DashboardSkeleton />;
 
   const trending = (data?.trending?.length ? data.trending : data?.recently_added) ?? [];
-  const categories = Object.entries(data?.category_counts ?? {});
 
   return (
     <div className="grid gap-8 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
-      {/* ---------- LEFT SIDEBAR (sticky): Collections + Browse ---------- */}
+      {/* ---------- LEFT SIDEBAR (sticky): Collections ---------- */}
       <aside className="space-y-4 self-start lg:sticky lg:top-20">
-        {/* Collections — teal/primary tint. CollectionTree renders its own Card; we
-            wrap it so the panel reads with a subtle primary header tint. */}
-        <Card className="overflow-hidden">
-          <CardHeader className="flex-row items-center gap-2 space-y-0 bg-gradient-to-r from-primary/10 to-transparent pb-3">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <FolderTree className="h-4 w-4" />
-            </span>
-            <CardTitle className="text-base">Collections</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <CollectionTree />
-          </CardContent>
-        </Card>
-
-        {/* Browse — slate/indigo neutral tint */}
-        <Card className="overflow-hidden">
-          <CardHeader className="flex-row items-center gap-2 space-y-0 bg-gradient-to-r from-indigo-500/10 to-transparent pb-3">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-indigo-500/10 text-indigo-600">
-              <Layers className="h-4 w-4" />
-            </span>
-            <CardTitle className="text-base">Browse</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Categories
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {categories.length ? (
-                  categories.map(([name, count]) => (
-                    <Link key={name} href={`/search?category=${encodeURIComponent(name)}`}>
-                      <Badge variant="secondary">
-                        {name} <span className="ml-1 opacity-60">{count}</span>
-                      </Badge>
-                    </Link>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">None yet.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="border-t pt-3">
-              <p className="mb-2 flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <Hash className="h-3 w-3" /> Technologies
-              </p>
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
-                {(techCloud ?? []).slice(0, 20).map((t) => (
-                  <Link key={t.slug} href={`/search?technology=${t.slug}`}>
-                    <span
-                      className="text-muted-foreground hover:text-primary"
-                      style={{ fontSize: `${0.8 + Math.min(t.count, 8) * 0.07}rem` }}
-                    >
-                      {t.name}
-                    </span>
-                  </Link>
-                ))}
-                {!techCloud?.length && (
-                  <p className="text-sm text-muted-foreground">None yet.</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <CollectionTree />
       </aside>
 
       {/* ---------- MAIN AREA ---------- */}

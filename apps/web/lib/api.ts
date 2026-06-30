@@ -122,6 +122,8 @@ export const api = {
   // collections
   collections: () => req<Collection[]>("/collections"),
   allCollections: () => req<Collection[]>("/collections?top_level=false"),
+  collectionsForReport: (reportId: string) =>
+    req<Collection[]>(`/collections/for-report/${reportId}`),
   collection: (idOrSlug: string) => req<CollectionDetail>(`/collections/${idOrSlug}`),
   createCollection: (body: {
     name: string;

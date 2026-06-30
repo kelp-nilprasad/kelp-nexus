@@ -30,6 +30,29 @@ def test_create_collection_and_add_report(client, auth_headers):
     assert detail["reports"][0]["id"] == report["id"]
 
 
+def test_collections_for_report_reflects_add_and_remove(client, auth_headers):
+    coll = client.post(
+        "/api/v1/collections", json={"name": "Membership Folder"}, headers=auth_headers
+    ).json()
+    report = _make_report(client, auth_headers, title="Membership Report")
+    rid, slug = report["id"], coll["slug"]
+
+    # Not a member yet.
+    before = client.get(f"/api/v1/collections/for-report/{rid}", headers=auth_headers)
+    assert before.status_code == 200
+    assert all(c["id"] != coll["id"] for c in before.json())
+
+    # After adding, the collection shows up.
+    client.put(f"/api/v1/collections/{slug}/reports/{rid}", headers=auth_headers)
+    after_add = client.get(f"/api/v1/collections/for-report/{rid}", headers=auth_headers).json()
+    assert any(c["id"] == coll["id"] for c in after_add)
+
+    # After removing (undo), it's gone again.
+    client.delete(f"/api/v1/collections/{slug}/reports/{rid}", headers=auth_headers)
+    after_remove = client.get(f"/api/v1/collections/for-report/{rid}", headers=auth_headers).json()
+    assert all(c["id"] != coll["id"] for c in after_remove)
+
+
 def test_collection_requires_auth(client):
     resp = client.post("/api/v1/collections", json={"name": "nope"})
     assert resp.status_code == 401

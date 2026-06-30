@@ -98,6 +98,33 @@ def list_collections(
     return [_to_out(db, c) for c in rows]
 
 
+@router.get("/for-report/{report_id}", response_model=list[CollectionOut])
+def collections_for_report(
+    report_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Collections owned by the current user that contain the given report.
+
+    Powers the report sidebar's "Add to collection" picker so it can show — and
+    toggle off — the report's existing memberships. Only the user's own
+    collections are returned, since those are the only ones they can add to or
+    remove from.
+    """
+    stmt = (
+        select(Collection)
+        .join(collection_reports, collection_reports.c.collection_id == Collection.id)
+        .where(
+            collection_reports.c.report_id == report_id,
+            Collection.owner_id == user.id,
+        )
+        .options(selectinload(Collection.owner))
+        .order_by(Collection.created_at.desc())
+    )
+    rows = db.scalars(stmt).all()
+    return [_to_out(db, c) for c in rows]
+
+
 @router.post("", response_model=CollectionOut, status_code=201)
 def create_collection(
     payload: CollectionCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)
