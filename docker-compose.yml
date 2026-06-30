@@ -39,12 +39,17 @@ services:
       azurite:
         condition: service_started
     environment:
-      DATABASE_URL: postgresql+psycopg://kelp:kelp@db:5432/kelp_nexus
+      # Point at your server's Postgres by exporting DATABASE_URL; falls back to
+      # the bundled `db` service for a self-contained stack.
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://kelp:kelp@db:5432/kelp_nexus}
       AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
-      JWT_SECRET: dev-insecure-change-me
+      # Set a strong JWT_SECRET in the deploy environment.
+      JWT_SECRET: ${JWT_SECRET:-dev-insecure-change-me}
       DEV_LOGIN: "true"
-      ENVIRONMENT: development
-      CORS_ORIGINS: '["http://localhost:3000"]'
+      # production => Secure cookies (works because nginx terminates TLS).
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      WEB_BASE_URL: https://kelpllm.kelpglobal.co.in:6101
+      CORS_ORIGINS: '["https://kelpllm.kelpglobal.co.in:6101"]'
     ports:
       - "8000:8000"
     # Migrate, seed, then serve.
@@ -71,8 +76,8 @@ services:
     depends_on:
       - web
     ports:
-      - "80:80"
-      - "443:443"
+      # Public HTTPS entrypoint: https://kelpllm.kelpglobal.co.in:6101
+      - "6101:443"
     volumes:
       - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       # Existing certs. Point KELP_CERTS_DIR at the host folder holding

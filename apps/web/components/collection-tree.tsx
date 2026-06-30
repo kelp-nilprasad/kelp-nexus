@@ -70,8 +70,8 @@ export function CollectionTree() {
     });
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="flex-row items-center justify-between space-y-0 bg-gradient-to-r from-primary/10 to-transparent pb-3">
+    <Card className="flex max-h-[calc(100vh-6rem)] min-h-[70vh] flex-col overflow-hidden">
+      <CardHeader className="flex-row items-center justify-between space-y-0 border-b bg-gradient-to-r from-primary/10 to-transparent pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
             <FolderTree className="h-4 w-4" />
@@ -87,7 +87,7 @@ export function CollectionTree() {
           <FolderPlus className="h-4 w-4" /> New
         </Button>
       </CardHeader>
-      <CardContent className="space-y-1">
+      <CardContent className="flex-1 space-y-1 overflow-y-auto pt-4">
         {creatingRoot && (
           <div className="mb-2 flex gap-2">
             <Input
@@ -154,8 +154,19 @@ function TreeRow({
   const [subName, setSubName] = useState("");
 
   const hasChildren = node.children.length > 0;
+  const hasContent = hasChildren || node.report_count > 0;
   const isOpen = !collapsed.has(node.id);
   const isActive = activePath === `/collections/${node.slug}`;
+
+  // Lazily load the reports inside this collection once it's expanded, so the
+  // tree shows end-to-end which reports live in each folder. Shares the cache
+  // key used by the collection page + breadcrumb.
+  const { data: detail } = useQuery({
+    queryKey: ["collection", node.slug],
+    queryFn: () => api.collection(node.slug),
+    enabled: isOpen && node.report_count > 0,
+  });
+  const reports = detail?.reports ?? [];
 
   const createSub = useMutation({
     mutationFn: () => api.createCollection({ name: subName, parent_id: node.id }),
@@ -177,7 +188,7 @@ function TreeRow({
         style={{ paddingLeft: depth * 18 + 4 }}
       >
         {/* expand / collapse */}
-        {hasChildren ? (
+        {hasContent ? (
           <button
             onClick={() => toggle(node.id)}
             className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
@@ -191,7 +202,7 @@ function TreeRow({
           <span className="h-5 w-5 shrink-0" />
         )}
 
-        {isOpen && hasChildren ? (
+        {isOpen && hasContent ? (
           <FolderOpen className="h-4 w-4 shrink-0 text-primary" />
         ) : (
           <Folder className="h-4 w-4 shrink-0 text-primary" />
@@ -244,7 +255,7 @@ function TreeRow({
         </div>
       )}
 
-      {isOpen && hasChildren && (
+      {isOpen && hasContent && (
         <div className="ml-[14px] border-l border-border/70">
           {node.children.map((child) => (
             <TreeRow
@@ -256,6 +267,32 @@ function TreeRow({
               activePath={activePath}
             />
           ))}
+
+          {/* report leaves */}
+          {reports.map((r) => (
+            <Link
+              key={r.id}
+              href={`/reports/${r.slug}`}
+              className={cn(
+                "flex items-center gap-2 rounded-md py-1.5 pr-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                activePath === `/reports/${r.slug}` && "bg-accent text-foreground",
+              )}
+              style={{ paddingLeft: (depth + 1) * 18 + 4 }}
+            >
+              <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+              <span className="min-w-0 flex-1 truncate">{r.title}</span>
+            </Link>
+          ))}
+
+          {/* loading placeholder while a folder's reports stream in */}
+          {node.report_count > 0 && !detail && (
+            <p
+              className="py-1.5 text-xs text-muted-foreground"
+              style={{ paddingLeft: (depth + 1) * 18 + 4 }}
+            >
+              Loading…
+            </p>
+          )}
         </div>
       )}
     </div>

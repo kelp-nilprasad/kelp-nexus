@@ -170,9 +170,9 @@ export default function DashboardPage() {
   const trending = (data?.trending?.length ? data.trending : data?.recently_added) ?? [];
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+    <div className="grid gap-8 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
       {/* ---------- LEFT SIDEBAR (sticky): Collections ---------- */}
-      <aside className="space-y-4 self-start lg:sticky lg:top-20">
+      <aside className="self-start lg:sticky lg:top-20">
         <CollectionTree />
       </aside>
 
