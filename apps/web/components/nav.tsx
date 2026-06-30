@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { Avatar } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { SearchAutocomplete } from "./search-autocomplete";
+import { ThemeToggle } from "./theme-toggle";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -79,6 +80,7 @@ export function Nav() {
               <span className="hidden text-sm sm:inline">{user.name}</span>
             </Link>
           )}
+          <ThemeToggle />
           <Button variant="ghost" size="icon" onClick={logout} aria-label="Log out">
             <LogOut className="h-4 w-4" />
           </Button>
