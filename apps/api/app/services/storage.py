@@ -33,12 +33,26 @@ class BlobStorage:
         self._ensure_container()
 
     def _ensure_container(self) -> None:
+        """Reuse the existing container; create it only if it doesn't exist yet.
+
+        All reports live in this single, stable container (`settings.azure_blob_container`).
+        We never recreate it on boot — on a shared storage account the account key may
+        not even have container-create rights, and the container is expected to
+        already exist.
+        """
+        container = self._client.get_container_client(self._container)
         try:
+            if container.exists():
+                return
             self._client.create_container(self._container)
+            logger.info("Created blob container %s", self._container)
         except ResourceExistsError:
             pass
-        except Exception as exc:  # pragma: no cover - storage offline
-            logger.warning("Could not ensure blob container: %s", exc)
+        except Exception as exc:  # pragma: no cover - storage offline / no perms
+            logger.warning(
+                "Could not verify/create blob container %s (will use it as-is): %s",
+                self._container, exc,
+            )
 
     def upload(self, path: str, data: bytes, content_type: str) -> str:
         """Upload bytes to `path`; returns the blob path stored in the DB."""
