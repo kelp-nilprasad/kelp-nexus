@@ -1,0 +1,23 @@
+# Keep secrets and local cruft out of the build context / image layers.
+# Runtime config is injected by docker-compose (env_file / environment), never baked in.
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Python
+**/__pycache__/
+**/*.pyc
+apps/api/.venv/
+apps/api/.mypy_cache/
+apps/api/.pytest_cache/
+apps/api/.ruff_cache/
+
+# Node / Next
+apps/web/node_modules/
+apps/web/.next/
+apps/web/out/
+
+# VCS / editor / OS
+.git/
+.gitignore
+**/.DS_Store

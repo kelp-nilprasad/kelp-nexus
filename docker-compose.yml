@@ -38,11 +38,16 @@ services:
         condition: service_healthy
       azurite:
         condition: service_started
+    # Secrets (Azure account/key, MSAL client id/secret/tenant, etc.) are injected
+    # at RUNTIME from apps/api/.env — never baked into the image (see .dockerignore).
+    # `environment:` below overrides any same-named key from this file, so the
+    # prod-specific values win over the local-dev defaults in apps/api/.env.
+    env_file:
+      - apps/api/.env
     environment:
       # Point at your server's Postgres by exporting DATABASE_URL; falls back to
       # the bundled `db` service for a self-contained stack.
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://kelp:kelp@db:5432/kelp_nexus}
-      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
       # Set a strong JWT_SECRET in the deploy environment.
       JWT_SECRET: ${JWT_SECRET:-dev-insecure-change-me}
       DEV_LOGIN: "true"
@@ -50,6 +55,10 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-production}
       WEB_BASE_URL: https://kelpllm.kelpglobal.co.in:6101
       CORS_ORIGINS: '["https://kelpllm.kelpglobal.co.in:6101"]'
+      # MSAL/Entra: the redirect URI must match a Web redirect URI registered in
+      # the Entra app registration exactly (public origin, /api/v1 path, port 6101).
+      # Overrides the localhost value in apps/api/.env.
+      MSAL_REDIRECT_URI: https://kelpllm.kelpglobal.co.in:6101/api/v1/auth/callback
     ports:
       - "8000:8000"
     # Migrate, seed, then serve.

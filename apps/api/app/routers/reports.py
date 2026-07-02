@@ -1,12 +1,14 @@
 """Report CRUD, HTML/PDF upload, versioning, and rendering."""
 from __future__ import annotations
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.config import settings
 from app.core.deps import get_current_user, get_optional_user, require_role
 from app.db.models.report import Report, ReportStatus, ReportVersion, Visibility
 from app.db.models.user import Role, User
@@ -26,6 +28,7 @@ from app.services.storage import get_storage
 from app.services.taxonomy import unique_report_slug, upsert_tags, upsert_technologies
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+logger = logging.getLogger(__name__)
 
 _EAGER = (
     selectinload(Report.author),
@@ -240,12 +243,26 @@ def render_html(
             break
     if not target:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No HTML for this report/version")
-    data = get_storage().download(target.html_blob_path)
+    try:
+        data = get_storage().download(target.html_blob_path)
+    except Exception as exc:  # blob missing / storage unreachable
+        # Surface a clear error instead of an opaque 500 rendered inside the iframe.
+        logger.exception(
+            "Failed to load report HTML blob %s (report %s): %s",
+            target.html_blob_path, report.id, exc,
+        )
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "Report content is unavailable (could not read it from storage).",
+        ) from exc
     # Lock down rendering; this endpoint is loaded by an isolated sandboxed iframe.
+    # frame-ancestors must list the web origin(s) or the browser blocks the frame
+    # in production (localhost only works in dev).
+    frame_ancestors = " ".join(settings.cors_origins) or "'self'"
     headers = {
         "Content-Security-Policy": (
             "default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; "
-            "font-src https: data:; frame-ancestors http://localhost:3000"
+            f"font-src https: data:; frame-ancestors {frame_ancestors}"
         ),
         "X-Content-Type-Options": "nosniff",
     }
