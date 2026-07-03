@@ -30,8 +30,7 @@ export default function UploadPage() {
     github_repo: "",
     demo_url: "",
   });
-  const [htmlFile, setHtmlFile] = useState<File | null>(null);
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [assetFile, setAssetFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -45,13 +44,13 @@ export default function UploadPage() {
     form.description.trim() &&
     form.summary.trim() &&
     tagList.length > 0 &&
-    !!htmlFile;
+    !!assetFile;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     if (!isValid) {
-      setError("Description, summary, at least one tag, and an HTML report are required.");
+      setError("Description, summary, at least one tag, and a report file are required.");
       return;
     }
     setBusy(true);
@@ -71,8 +70,7 @@ export default function UploadPage() {
       });
 
       const fd = new FormData();
-      if (htmlFile) fd.append("html", htmlFile);
-      if (pdfFile) fd.append("pdf", pdfFile);
+      if (assetFile) fd.append("file", assetFile);
       await api.uploadVersion(report.slug, fd);
 
       if (collectionId) {
@@ -213,25 +211,23 @@ export default function UploadPage() {
           <CardHeader>
             <CardTitle className="text-base">Files</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+          <CardContent>
             <div>
-              <label className="mb-1 block text-sm font-medium">HTML report *</label>
+              <label className="mb-1 block text-sm font-medium">Report file *</label>
               <Input
                 type="file"
-                accept=".html,text/html"
-                onChange={(e) => setHtmlFile(e.target.files?.[0] ?? null)}
+                accept=".html,text/html,application/pdf,.pdf,video/*"
+                onChange={(e) => setAssetFile(e.target.files?.[0] ?? null)}
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Required. Sanitized on upload, rendered in a sandboxed iframe.
+                Required. HTML, PDF, or video. HTML is sanitized on upload and rendered in a
+                sandboxed iframe; PDFs and videos are viewed inline.
               </p>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">PDF attachment</label>
-              <Input
-                type="file"
-                accept="application/pdf"
-                onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
-              />
+              {assetFile && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Selected: {assetFile.name} ({Math.round(assetFile.size / 1024)} KB)
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

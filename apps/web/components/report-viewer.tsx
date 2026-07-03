@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
-import { Button } from "./ui/button";
+import { ExternalLink, Maximize2, Minimize2 } from "lucide-react";
+import { Button, buttonVariants } from "./ui/button";
 
 /**
  * Renders an uploaded HTML report inside a hardened sandboxed iframe.
@@ -14,7 +14,15 @@ import { Button } from "./ui/button";
  *    even if malicious markup slipped through it cannot run scripts, read cookies,
  *    or reach the parent origin.
  */
-export function ReportViewer({ src, title }: { src: string; title: string }) {
+export function ReportViewer({
+  src,
+  title,
+  mediaKind = "html",
+}: {
+  src: string;
+  title: string;
+  mediaKind?: "html" | "pdf" | "video" | "other" | null;
+}) {
   const [fullscreen, setFullscreen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -35,20 +43,51 @@ export function ReportViewer({ src, title }: { src: string; title: string }) {
     >
       <div className="flex items-center justify-between border-b bg-muted/40 px-4 py-2">
         <span className="truncate text-sm font-medium text-muted-foreground">{title}</span>
-        <Button variant="ghost" size="sm" onClick={toggleFullscreen} aria-label="Toggle fullscreen">
-          {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          {fullscreen ? "Exit" : "Fullscreen"}
-        </Button>
+        <div className="flex items-center gap-1">
+          <a
+            href={src}
+            target="_blank"
+            rel="noreferrer"
+            className={buttonVariants({ variant: "ghost", size: "sm" })}
+            aria-label="Open in new tab"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Open in new tab
+          </a>
+          <Button variant="ghost" size="sm" onClick={toggleFullscreen} aria-label="Toggle fullscreen">
+            {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            {fullscreen ? "Exit" : "Fullscreen"}
+          </Button>
+        </div>
       </div>
-      <iframe
-        src={src}
-        title={title}
-        // No allow-same-origin / allow-scripts: fully isolated rendering.
-        sandbox="allow-popups allow-popups-to-escape-sandbox"
-        referrerPolicy="no-referrer"
-        className="h-[70vh] w-full bg-white"
-        style={fullscreen ? { height: "calc(100vh - 41px)" } : undefined}
-      />
+      {mediaKind === "video" ? (
+        <video
+          src={src}
+          title={title}
+          controls
+          className="h-[70vh] w-full bg-black"
+          style={fullscreen ? { height: "calc(100vh - 41px)" } : undefined}
+        />
+      ) : mediaKind === "pdf" ? (
+        // Served by our API as application/pdf; the browser's built-in viewer needs
+        // scripts, so we don't apply the locked-down HTML sandbox here.
+        <iframe
+          src={src}
+          title={title}
+          className="h-[70vh] w-full bg-white"
+          style={fullscreen ? { height: "calc(100vh - 41px)" } : undefined}
+        />
+      ) : (
+        <iframe
+          src={src}
+          title={title}
+          // No allow-same-origin / allow-scripts: fully isolated rendering.
+          sandbox="allow-popups allow-popups-to-escape-sandbox"
+          referrerPolicy="no-referrer"
+          className="h-[70vh] w-full bg-white"
+          style={fullscreen ? { height: "calc(100vh - 41px)" } : undefined}
+        />
+      )}
     </div>
   );
 }

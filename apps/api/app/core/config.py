@@ -58,6 +58,21 @@ class Settings(BaseSettings):
         "K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;"
     )
 
+    # --- Storage backend --------------------------------------------------
+    # "azure" (Azure Blob) or "sharepoint" (Microsoft Graph, delegated user token).
+    storage_backend: str = "azure"
+
+    # --- SharePoint (Microsoft Graph, delegated) --------------------------
+    # `sharepoint_site` may be a plain site name (resolved via Graph search, e.g.
+    # "KelpNexus") or an explicit "hostname:/sites/Name" path. `sharepoint_library`
+    # is the document library (drive) display name; the site's default drive is used
+    # when unset. Files are stored under `sharepoint_root_folder` inside it.
+    sharepoint_site: str = "KelpNexus"
+    sharepoint_library: str | None = None
+    sharepoint_root_folder: str = "reports"
+    # Delegated Graph scope needed to read/write the site's document library.
+    graph_scopes: list[str] = ["Sites.ReadWrite.All"]
+
     # --- AI (Claude) — features degrade gracefully if unset ---------------
     anthropic_api_key: str | None = None
     ai_model: str = "claude-opus-4-8"
@@ -81,6 +96,18 @@ class Settings(BaseSettings):
     @property
     def msal_configured(self) -> bool:
         return bool(self.msal_client_id and self.msal_tenant_id)
+
+    @property
+    def use_sharepoint(self) -> bool:
+        return self.storage_backend.lower() == "sharepoint"
+
+    @property
+    def login_scopes(self) -> list[str]:
+        """Scopes requested during MSAL sign-in (adds Graph scopes for SharePoint)."""
+        scopes = list(self.msal_scopes)
+        if self.use_sharepoint:
+            scopes += [s for s in self.graph_scopes if s not in scopes]
+        return scopes
 
     @property
     def azure_blob_account_url(self) -> str | None:

@@ -37,5 +37,8 @@ class User(Base, TimestampMixin):
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    # Serialized MSAL token cache (holds the delegated Graph refresh token) so we can
+    # acquire tokens silently for SharePoint uploads/downloads after sign-in.
+    msal_token_cache: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     reports: Mapped[list[Report]] = relationship(back_populates="author")

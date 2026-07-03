@@ -35,6 +35,9 @@ export interface ReportVersion {
   created_at: string;
   has_html: boolean;
   has_pdf: boolean;
+  media_kind?: "html" | "pdf" | "video" | "other" | null;
+  content_type?: string | null;
+  asset_name?: string | null;
 }
 
 export interface ReportSummary {

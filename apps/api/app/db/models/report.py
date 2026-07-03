@@ -151,6 +151,11 @@ class ReportVersion(Base, TimestampMixin):
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     html_blob_path: Mapped[str | None] = mapped_column(String(600), nullable=True)
     pdf_blob_path: Mapped[str | None] = mapped_column(String(600), nullable=True)
+    # Generic uploaded asset (html, pdf, video, ...): storage path/id + how to view it.
+    asset_path: Mapped[str | None] = mapped_column(String(600), nullable=True)
+    asset_name: Mapped[str | None] = mapped_column(String(400), nullable=True)
+    content_type: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    media_kind: Mapped[str | None] = mapped_column(String(20), nullable=True)  # html|pdf|video|other
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)  # for FTS
     changelog: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(

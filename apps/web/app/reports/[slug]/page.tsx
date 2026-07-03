@@ -57,7 +57,11 @@ export default function ReportDetailPage({ params }: { params: { slug: string } 
   if (isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!report) return <p className="text-muted-foreground">Report not found.</p>;
 
-  const hasHtml = report.versions.some((v) => v.has_html);
+  const latestVersion = [...report.versions].sort((a, b) => b.version - a.version)[0];
+  const mediaKind =
+    latestVersion?.media_kind ??
+    (latestVersion?.has_html ? "html" : latestVersion?.has_pdf ? "pdf" : null);
+  const hasViewable = Boolean(mediaKind);
 
   return (
     <div className="space-y-8">
@@ -113,9 +117,13 @@ export default function ReportDetailPage({ params }: { params: { slug: string } 
             </Card>
           )}
 
-          {/* HTML viewer */}
-          {hasHtml && (
-            <ReportViewer src={api.renderUrl(report.slug)} title={report.title} />
+          {/* Asset viewer (HTML / PDF / video) */}
+          {hasViewable && (
+            <ReportViewer
+              src={api.renderUrl(report.slug)}
+              title={report.title}
+              mediaKind={mediaKind}
+            />
           )}
 
           {/* Comments */}

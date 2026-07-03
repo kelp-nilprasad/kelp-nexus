@@ -90,7 +90,7 @@ def callback(request: Request, db: Session = Depends(get_db)):
     if not flow:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Auth flow expired; please retry")
 
-    result = acquire_token_by_flow(flow, dict(request.query_params))
+    result, token_cache = acquire_token_by_flow(flow, dict(request.query_params))
     if "error" in result:
         logger.warning("MSAL error: %s — %s", result.get("error"), result.get("error_description"))
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, result.get("error_description", "Sign-in failed"))
@@ -103,6 +103,10 @@ def callback(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Incomplete profile from Microsoft")
 
     user = _upsert_user(db, oid=oid, email=email, name=name)
+    # Persist the delegated Graph token cache for later SharePoint access.
+    if token_cache:
+        user.msal_token_cache = token_cache
+        db.commit()
     token = create_access_token(str(user.id), user.role.value)
     redirect = RedirectResponse(url=f"{settings.web_base_url}/dashboard")
     redirect.set_cookie(

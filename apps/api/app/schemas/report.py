@@ -82,6 +82,10 @@ class ReportVersionOut(BaseModel):
     created_at: datetime
     has_html: bool = False
     has_pdf: bool = False
+    # Generic uploaded asset (html, pdf, video, ...) and how the UI should view it.
+    media_kind: str | None = None  # html|pdf|video|other
+    content_type: str | None = None
+    asset_name: str | None = None
 
 
 class ReportSummary(BaseModel):
