@@ -6,8 +6,7 @@ auth router, so the rest of the app stays provider-agnostic.
 
 SharePoint storage uses an APP-ONLY Microsoft Graph token (client credentials via
 `acquire_app_graph_token`) — the app acts as its own identity, so any signed-in
-user (including local dev-login) can read/write the document library without a
-per-user Graph token.
+user can read/write the document library without a per-user Graph token.
 """
 from __future__ import annotations
 

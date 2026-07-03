@@ -38,7 +38,6 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://kelp:kelp@db:5432/kelp_nexus}
       # Set a strong JWT_SECRET in the deploy environment.
       JWT_SECRET: ${JWT_SECRET:-dev-insecure-change-me}
-      DEV_LOGIN: "true"
       # production => Secure cookies (works because nginx terminates TLS).
       ENVIRONMENT: ${ENVIRONMENT:-production}
       WEB_BASE_URL: https://kelpllm.kelpglobal.co.in:6101

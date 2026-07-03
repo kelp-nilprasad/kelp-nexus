@@ -27,10 +27,10 @@ class Settings(BaseSettings):
     db_enable_ssl: bool = False
 
     # --- Auth (app session) ----------------------------------------------
+    # Sign-in is Microsoft Entra ID (MSAL SSO) only — there is no local password login.
     jwt_secret: str = "dev-insecure-change-me"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24
-    dev_login: bool = True  # enable /auth/dev-login + seeded local accounts
 
     # --- MSAL / Entra ID (Microsoft sign-in) ------------------------------
     msal_client_id: str | None = None

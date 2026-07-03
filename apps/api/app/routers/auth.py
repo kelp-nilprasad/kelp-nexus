@@ -1,8 +1,8 @@
-"""Authentication: Microsoft Entra ID (MSAL SSO) + local dev-login fallback.
+"""Authentication: Microsoft Entra ID (MSAL SSO) only.
 
 The Microsoft handshake is bridged to our own model: on success we upsert a local
 User keyed by the token's `oid` and issue our session JWT cookie, so RBAC,
-authorship, and comments work the same regardless of how the user signed in.
+authorship, and comments work off our own session.
 """
 from __future__ import annotations
 
@@ -16,10 +16,10 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.deps import get_current_user
 from app.core.msal_client import acquire_token_by_flow, build_auth_code_flow, get_msal_app
-from app.core.security import create_access_token, verify_password
+from app.core.security import create_access_token
 from app.db.models.user import Role, User
 from app.db.session import get_db
-from app.schemas.user import DevLoginRequest, TokenResponse, UserPublic
+from app.schemas.user import UserPublic
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -54,21 +54,6 @@ def _upsert_user(db: Session, *, oid: str, email: str, name: str) -> User:
     db.commit()
     db.refresh(user)
     return user
-
-
-@router.post("/dev-login", response_model=TokenResponse)
-def dev_login(payload: DevLoginRequest, response: Response, db: Session = Depends(get_db)):
-    """Local email/password login. Disabled unless DEV_LOGIN=true."""
-    if not settings.dev_login:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Dev login disabled")
-    user = db.scalar(select(User).where(User.email == payload.email))
-    if not user or not user.hashed_password or not verify_password(
-        payload.password, user.hashed_password
-    ):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
-    token = create_access_token(str(user.id), user.role.value)
-    _set_cookie(response, token)
-    return TokenResponse(access_token=token, user=UserPublic.model_validate(user))
 
 
 @router.get("/login")
@@ -131,4 +116,4 @@ def me(user: User = Depends(get_current_user)):
 @router.get("/config")
 def auth_config():
     """Lets the frontend know which login methods are available."""
-    return {"microsoft": settings.msal_configured, "dev_login": settings.dev_login}
+    return {"microsoft": settings.msal_configured}

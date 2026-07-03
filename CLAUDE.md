@@ -68,11 +68,11 @@ when adding migrations that might race with model metadata.
 
 **Auth** (`core/deps.py`, `core/security.py`, `routers/auth.py`): app-issued JWT carried as
 an httpOnly `access_token` cookie *or* `Authorization: Bearer`. RBAC via
-`require_role(Role.x)` against a `viewer<author<editor<admin` rank table. Two front doors:
-MSAL/Entra ID SSO (`core/msal_client.py`, active only when `MSAL_CLIENT_ID`+`MSAL_TENANT_ID`
-set) and a dev-login fallback (`DEV_LOGIN=true`) with seeded accounts. Passwords use `bcrypt`
-**directly** (input truncated to 72 bytes) — passlib was removed due to a bcrypt 4.x
-incompatibility; don't reintroduce it.
+`require_role(Role.x)` against a `viewer<author<editor<admin` rank table. Sign-in is
+**Microsoft Entra ID (MSAL SSO) only** (`core/msal_client.py`, active when
+`MSAL_CLIENT_ID`+`MSAL_TENANT_ID` set); the callback upserts a local User keyed by the
+token `oid` and issues the session JWT. There is **no** local password / dev-login path —
+don't reintroduce one (no passwords are stored; seeded users are author records only).
 
 **HTML safety is defense-in-depth.** On upload (`routers/reports.py::upload_version`) HTML is
 sanitized server-side (`services/html_sanitize.py`: BeautifulSoup `decompose()` of dangerous
@@ -84,7 +84,7 @@ HTML into the React tree directly.
 **Storage** (`services/sharepoint.py`): report assets (HTML/PDF/video) live in a **SharePoint**
 document library, accessed over Microsoft Graph with an **app-only** token
 (`core/msal_client.py::acquire_app_graph_token` — client credentials, the app's own identity,
-so any signed-in user incl. dev-login can upload/view; no per-user Graph token). Requires the
+so any signed-in user can upload/view; no per-user Graph token). Requires the
 Entra app to hold the **application** permission `Sites.ReadWrite.All` (admin-consented).
 Layout: `{sharepoint_root_folder}/{report_id}/v{n}/asset.{ext}` under the site's default (or
 named) drive. The DB stores only the Graph **drive-item id** as the asset path + extracted text.

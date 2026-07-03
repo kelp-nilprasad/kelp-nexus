@@ -37,14 +37,3 @@ class UserUpdate(BaseModel):
 
 class RoleUpdate(BaseModel):
     role: Role
-
-
-class DevLoginRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: UserPublic

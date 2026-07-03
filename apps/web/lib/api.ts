@@ -58,12 +58,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   // auth
-  authConfig: () => req<{ microsoft: boolean; dev_login: boolean }>("/auth/config"),
-  devLogin: (email: string, password: string) =>
-    req<{ access_token: string; user: User }>("/auth/dev-login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    }),
+  authConfig: () => req<{ microsoft: boolean }>("/auth/config"),
   logout: () => req<{ ok: boolean }>("/auth/logout", { method: "POST" }),
   me: () => req<User>("/auth/me"),
 

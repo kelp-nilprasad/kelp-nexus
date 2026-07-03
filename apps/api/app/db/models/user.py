@@ -28,7 +28,7 @@ class User(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     azure_oid: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False, index=True)
-    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)  # dev-login only
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)  # deprecated/unused (SSO-only)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     role: Mapped[Role] = mapped_column(Enum(Role, name="role"), default=Role.author, nullable=False)
     team: Mapped[str | None] = mapped_column(String(120), nullable=True)

@@ -7,7 +7,6 @@ data:
   ENVIRONMENT: "production"
   API_V1_PREFIX: "/api/v1"
   CORS_ORIGINS: '["https://kelp.internal.example.com"]'
-  DEV_LOGIN: "false"
   ENABLE_AI: "false"
   AI_MODEL: "claude-opus-4-8"
   EMBEDDING_DIM: "1536"

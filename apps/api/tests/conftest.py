@@ -14,7 +14,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
-from app.core.security import create_access_token, hash_password
+from app.core.security import create_access_token
 from app.db.base import Base
 from app.db import models  # noqa: F401
 from app.db.models.user import Role, User
@@ -73,7 +73,7 @@ def client(db_session):
 def author(db_session) -> User:
     user = User(
         id=uuid.uuid4(), email=f"author-{uuid.uuid4().hex[:6]}@test.dev", name="Test Author",
-        role=Role.author, hashed_password=hash_password("pw"),
+        role=Role.author,
     )
     db_session.add(user)
     db_session.flush()

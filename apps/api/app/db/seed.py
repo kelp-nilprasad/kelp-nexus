@@ -8,7 +8,6 @@ from __future__ import annotations
 from slugify import slugify
 from sqlalchemy import select
 
-from app.core.security import hash_password
 from app.db.models.report import (
     Category,
     Report,
@@ -86,10 +85,10 @@ def run() -> None:
 
         users: dict[str, User] = {}
         for email, name, role, team, dept in USERS:
+            # Author records only — sign-in is Microsoft SSO (no local passwords).
             u = User(
                 email=email, name=name, role=role, team=team, department=dept,
-                hashed_password=hash_password("password123"), title="Engineer",
-                bio=f"{name} works on the {team} team.",
+                title="Engineer", bio=f"{name} works on the {team} team.",
             )
             db.add(u)
             users[email] = u
