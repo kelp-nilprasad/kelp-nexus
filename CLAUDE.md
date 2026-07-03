@@ -76,15 +76,19 @@ incompatibility; don't reintroduce it.
 
 **HTML safety is defense-in-depth.** On upload (`routers/reports.py::upload_version`) HTML is
 sanitized server-side (`services/html_sanitize.py`: BeautifulSoup `decompose()` of dangerous
-tags *then* `bleach.clean`) and only the sanitized copy is stored in Blob. On read, the
+tags *then* `bleach.clean`) and only the sanitized copy is stored in SharePoint. On read, the
 `/reports/{id}/render` endpoint serves it with a locked-down CSP, and the **web app loads it
 into a sandboxed `<iframe>`** (no `allow-scripts`/`allow-same-origin`). Never inject report
 HTML into the React tree directly.
 
-**Storage** (`services/storage.py`): one `BlobStorage` (lru_cache singleton) over Azure Blob.
-Prefers real Azure when account name **and** key are set, else falls back to the Azurite
-connection string. Blob layout: `reports/{report_id}/v{n}/report.{html,pdf}`. The DB stores
-only blob **paths** + extracted text.
+**Storage** (`services/sharepoint.py`): report assets (HTML/PDF/video) live in a **SharePoint**
+document library, accessed over Microsoft Graph with an **app-only** token
+(`core/msal_client.py::acquire_app_graph_token` — client credentials, the app's own identity,
+so any signed-in user incl. dev-login can upload/view; no per-user Graph token). Requires the
+Entra app to hold the **application** permission `Sites.ReadWrite.All` (admin-consented).
+Layout: `{sharepoint_root_folder}/{report_id}/v{n}/asset.{ext}` under the site's default (or
+named) drive. The DB stores only the Graph **drive-item id** as the asset path + extracted text.
+There is no Azure Blob backend — storage is SharePoint-only.
 
 **Search** (`services/search.py`): Postgres FTS over a maintained `search_vector` tsvector
 (GIN-indexed, populated by a DB trigger fed from title/summary/description/project and
@@ -107,8 +111,8 @@ rendered as a recursive tree in `components/collection-tree.tsx`.
   occupies 5432). See memory: `kelp-nexus-local-db-port`. For Docker-compose Postgres, set
   `KELP_DB_PORT` if 5432/5433 are taken.
 - `apps/api/.env` is gitignored and user-managed; `apps/api/.env.example` documents the keys.
-  Blob container defaults to `reports`; the real Azure account name/key live only in
-  the local `.env` — never commit them.
+  SharePoint needs `SHAREPOINT_SITE` + the MSAL app credentials (`MSAL_CLIENT_ID/TENANT_ID/
+  CLIENT_SECRET`); the real client secret lives only in the local `.env` — never commit it.
 - AI features (`services/ai.py`, Claude) are off by default (`ENABLE_AI=false`) and degrade
   gracefully without `ANTHROPIC_API_KEY`. Default model id: `claude-opus-4-8`.
 

@@ -4,10 +4,10 @@ Supports both a confidential client (when MSAL_CLIENT_SECRET is set) and a publi
 client (PKCE only). The flow is bridged to our own DB users + session JWT in the
 auth router, so the rest of the app stays provider-agnostic.
 
-When the SharePoint storage backend is active we also request delegated Microsoft
-Graph scopes at sign-in and persist the per-user MSAL token cache, so later
-requests can acquire a Graph token silently (via the stored refresh token) to
-read/write the SharePoint document library on the user's behalf.
+SharePoint storage uses an APP-ONLY Microsoft Graph token (client credentials via
+`acquire_app_graph_token`) — the app acts as its own identity, so any signed-in
+user (including local dev-login) can read/write the document library without a
+per-user Graph token.
 """
 from __future__ import annotations
 
@@ -63,24 +63,32 @@ def acquire_token_by_flow(flow: dict, auth_response: dict) -> tuple[dict, str | 
     return result, serialized
 
 
-def acquire_graph_token(serialized_cache: str | None) -> tuple[str | None, str | None]:
-    """Silently get a delegated Graph access token from a stored MSAL cache.
+_GRAPH_DEFAULT_SCOPE = ["https://graph.microsoft.com/.default"]
 
-    Returns (access_token_or_None, refreshed_serialized_cache_or_None). The cache
-    should be re-persisted when a refreshed copy is returned.
+
+@lru_cache
+def _app_only_client() -> "msal.ConfidentialClientApplication | None":
+    """Confidential client used for app-only (client-credentials) Graph tokens."""
+    if not settings.sharepoint_configured:
+        return None
+    return msal.ConfidentialClientApplication(
+        client_id=settings.msal_client_id,
+        authority=settings.msal_authority,
+        client_credential=settings.msal_client_secret,
+    )
+
+
+def acquire_app_graph_token() -> str | None:
+    """App-only Microsoft Graph access token (client credentials).
+
+    MSAL caches the token in-memory and transparently refreshes it before expiry,
+    so this is cheap to call per request. Returns None if SharePoint/MSAL isn't
+    configured or the token could not be acquired.
     """
-    if not serialized_cache:
-        return None, None
-    cache = msal.SerializableTokenCache()
-    cache.deserialize(serialized_cache)
-    app = _build_app(cache)
+    app = _app_only_client()
     if app is None:
-        return None, None
-    accounts = app.get_accounts()
-    if not accounts:
-        return None, None
-    result = app.acquire_token_silent(settings.graph_scopes, account=accounts[0])
-    refreshed = cache.serialize() if cache.has_state_changed else None
+        return None
+    result = app.acquire_token_for_client(scopes=_GRAPH_DEFAULT_SCOPE)
     if not result or "access_token" not in result:
-        return None, refreshed
-    return result["access_token"], refreshed
+        return None
+    return result["access_token"]

@@ -1,8 +1,8 @@
-"""SharePoint storage backend via Microsoft Graph (delegated user tokens).
+"""SharePoint storage backend via Microsoft Graph (app-only token).
 
-Files are stored in a SharePoint site's document library (drive). Callers pass a
-delegated Graph access token (obtained from the signed-in user's MSAL token cache,
-see `core.msal_client.acquire_graph_token`). The DB stores the Graph **drive item
+Files are stored in a SharePoint site's document library (drive). Callers pass an
+app-only Graph access token (the app's own identity, see
+`core.msal_client.acquire_app_graph_token`). The DB stores the Graph **drive item
 id** as the asset path.
 
 Resolution of the site id and drive id is cached process-wide (they are stable).

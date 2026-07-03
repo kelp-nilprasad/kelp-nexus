@@ -14,7 +14,7 @@ from fastapi.responses import RedirectResponse
 
 from app.core.config import settings
 from app.core.deps import get_current_user, get_optional_user, require_role
-from app.core.msal_client import acquire_graph_token
+from app.core.msal_client import acquire_app_graph_token
 from app.services import sharepoint
 from app.db.models.report import Report, ReportStatus, ReportVersion, Visibility
 from app.db.models.user import Role, User
@@ -30,7 +30,6 @@ from app.schemas.report import (
 )
 from app.services.ai import generate_summary, generate_tags
 from app.services.html_sanitize import extract_text, sanitize_html
-from app.services.storage import get_storage
 from app.services.taxonomy import unique_report_slug, upsert_tags, upsert_technologies
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -87,18 +86,14 @@ def _detail(report: Report) -> ReportDetail:
     return detail
 
 
-def _graph_token(user: User | None, db: Session) -> str:
-    """Delegated Graph token for the current user; refreshes + re-persists the cache."""
-    if user is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sign in with Microsoft to access SharePoint")
-    token, refreshed = acquire_graph_token(user.msal_token_cache)
-    if refreshed:
-        user.msal_token_cache = refreshed
-        db.commit()
+def _graph_token() -> str:
+    """App-only Microsoft Graph token for SharePoint (the app's own identity)."""
+    token = acquire_app_graph_token()
     if not token:
         raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            "SharePoint access requires signing in with Microsoft (no valid token).",
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "SharePoint is not configured (missing MSAL client credentials) or "
+            "the app lacks Graph access.",
         )
     return token
 
@@ -251,11 +246,17 @@ async def upload_version(
             "Unsupported file type. Upload an HTML, PDF, or video file.",
         )
 
-    rel_path = f"reports/{report.id}/v{new_version}/asset.{ext}"
-    if settings.use_sharepoint:
-        asset_path = sharepoint.upload(_graph_token(user, db), rel_path, data, content_type)
-    else:
-        asset_path = get_storage().upload(rel_path, data, content_type)
+    rel_path = f"{settings.sharepoint_root_folder}/{report.id}/v{new_version}/asset.{ext}"
+    try:
+        asset_path = sharepoint.upload(_graph_token(), rel_path, data, content_type)
+    except sharepoint.SharePointError as exc:
+        logger.error("SharePoint upload failed for report %s: %s", report.id, exc)
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "Could not save the file to SharePoint. Confirm the Entra app has the "
+            "application permission Sites.ReadWrite.All (admin-consented) and that "
+            "SHAREPOINT_SITE is correct.",
+        ) from exc
     if kind == "html" and auto_summarize and extracted:
         summary = generate_summary(extracted)
         if summary:
@@ -318,19 +319,16 @@ def render_html(
     path = target.asset_path or target.html_blob_path
     kind = target.media_kind or ("html" if target.html_blob_path else "pdf")
 
-    # SharePoint video: redirect to a short-lived pre-authed URL so the browser
-    # streams (with range) straight from SharePoint instead of via our process.
-    if kind == "video" and settings.use_sharepoint:
-        url = sharepoint.download_url(_graph_token(user, db), path)
+    # Video: redirect to a short-lived pre-authed URL so the browser streams
+    # (with range) straight from SharePoint instead of via our process.
+    if kind == "video":
+        url = sharepoint.download_url(_graph_token(), path)
         if not url:
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Video is unavailable")
         return RedirectResponse(url)
 
     try:
-        if settings.use_sharepoint:
-            data = sharepoint.download(_graph_token(user, db), path)
-        else:
-            data = get_storage().download(path)
+        data = sharepoint.download(_graph_token(), path)
     except HTTPException:
         raise
     except Exception as exc:  # blob missing / storage unreachable

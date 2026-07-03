@@ -19,16 +19,6 @@ services:
       timeout: 5s
       retries: 10
 
-  azurite:
-    image: mcr.microsoft.com/azure-storage/azurite
-    # skipApiVersionCheck: the Azure SDK negotiates a newer API version than the
-    # pinned Azurite image lists; the wire protocol is compatible.
-    command: "azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --skipApiVersionCheck"
-    ports:
-      - "10000:10000"
-    volumes:
-      - azurite:/data
-
   api:
     build:
       context: .
@@ -36,10 +26,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      azurite:
-        condition: service_started
-    # Secrets (Azure account/key, MSAL client id/secret/tenant, etc.) are injected
-    # at RUNTIME from apps/api/.env — never baked into the image (see .dockerignore).
+    # Secrets (MSAL client id/secret/tenant, etc.) are injected at RUNTIME from
+    # apps/api/.env — never baked into the image (see .dockerignore).
     # `environment:` below overrides any same-named key from this file, so the
     # prod-specific values win over the local-dev defaults in apps/api/.env.
     env_file:
@@ -96,4 +84,3 @@ services:
 
 volumes:
   pgdata:
-  azurite:

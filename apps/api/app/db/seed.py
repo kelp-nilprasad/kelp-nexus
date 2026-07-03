@@ -19,7 +19,6 @@ from app.db.models.report import (
 from app.db.models.user import Role, User
 from app.db.session import SessionLocal
 from app.services.html_sanitize import extract_text, sanitize_html
-from app.services.storage import get_storage
 from app.services.taxonomy import upsert_tags, upsert_technologies
 
 SAMPLE_HTML = """<!doctype html><html><head><meta charset='utf-8'>
@@ -101,7 +100,6 @@ def run() -> None:
             db.add(c)
         db.flush()
 
-        storage = get_storage()
         for spec in REPORTS:
             author = users[spec["author"]]
             report = Report(
@@ -125,12 +123,11 @@ def run() -> None:
             )
             clean = sanitize_html(html)
             report.content_text = extract_text(clean)
-            path = storage.upload(
-                f"reports/{report.id}/v1/report.html",
-                clean.encode("utf-8"), "text/html; charset=utf-8",
-            )
+            # Seed metadata + searchable text only; no asset is uploaded to
+            # SharePoint (keeps seeding offline and the library clean). Upload a
+            # real version via the API to get a viewable asset.
             db.add(ReportVersion(
-                report_id=report.id, version=1, html_blob_path=path,
+                report_id=report.id, version=1,
                 extracted_text=report.content_text, changelog="Initial version",
                 created_by=author.id,
             ))

@@ -1,7 +1,7 @@
 """Application configuration loaded from environment variables."""
 from functools import lru_cache
 
-from pydantic import AliasChoices, Field, model_validator
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,34 +35,17 @@ class Settings(BaseSettings):
     # --- MSAL / Entra ID (Microsoft sign-in) ------------------------------
     msal_client_id: str | None = None
     msal_tenant_id: str | None = None
-    msal_client_secret: str | None = None  # omit for a public client (PKCE only)
+    msal_client_secret: str | None = None  # required for SharePoint (app-only Graph)
     msal_redirect_uri: str = "http://localhost:8000/api/v1/auth/callback"
     msal_scopes: list[str] = ["User.Read"]
 
-    # --- Azure Blob storage ----------------------------------------------
-    # Preferred: account name + key (real Azure). Falls back to the Azurite
-    # connection string for local dev when account name/key are not set.
-    # Aliases accept the user's env names: AZURE_ACCOUNT, AZURE_CONTAINER_PATH.
-    azure_account_name: str | None = Field(
-        default=None, validation_alias=AliasChoices("azure_account_name", "azure_account")
-    )
-    azure_account_key: str | None = None
-    azure_blob_endpoint: str | None = Field(
-        default=None,
-        validation_alias=AliasChoices("azure_blob_endpoint", "azure_container_path"),
-    )
-    azure_blob_container: str = "reports"
-    azure_storage_connection_string: str = (
-        "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;"
-        "AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/"
-        "K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;"
-    )
-
-    # --- Storage backend --------------------------------------------------
-    # "azure" (Azure Blob) or "sharepoint" (Microsoft Graph, delegated user token).
-    storage_backend: str = "azure"
-
-    # --- SharePoint (Microsoft Graph, delegated) --------------------------
+    # --- SharePoint (Microsoft Graph, app-only / client-credentials) ------
+    # Report assets (HTML/PDF/video) are stored in a SharePoint document library
+    # and accessed with an APP-ONLY Graph token (the app's own identity, via
+    # MSAL_CLIENT_SECRET) — no per-user token, so every signed-in user can
+    # upload/view. Requires the Entra app to hold the APPLICATION permission
+    # `Sites.ReadWrite.All` with admin consent granted.
+    #
     # `sharepoint_site` may be a plain site name (resolved via Graph search, e.g.
     # "KelpNexus") or an explicit "hostname:/sites/Name" path. `sharepoint_library`
     # is the document library (drive) display name; the site's default drive is used
@@ -70,7 +53,8 @@ class Settings(BaseSettings):
     sharepoint_site: str = "KelpNexus"
     sharepoint_library: str | None = None
     sharepoint_root_folder: str = "reports"
-    # Delegated Graph scope needed to read/write the site's document library.
+    # Application Graph permission the app must be granted + admin-consented.
+    # (The app-only token itself is requested with the ".default" scope.)
     graph_scopes: list[str] = ["Sites.ReadWrite.All"]
 
     # --- AI (Claude) — features degrade gracefully if unset ---------------
@@ -98,24 +82,14 @@ class Settings(BaseSettings):
         return bool(self.msal_client_id and self.msal_tenant_id)
 
     @property
-    def use_sharepoint(self) -> bool:
-        return self.storage_backend.lower() == "sharepoint"
+    def sharepoint_configured(self) -> bool:
+        """App-only SharePoint access needs the app's client credentials."""
+        return bool(self.msal_configured and self.msal_client_secret)
 
     @property
     def login_scopes(self) -> list[str]:
-        """Scopes requested during MSAL sign-in (adds Graph scopes for SharePoint)."""
-        scopes = list(self.msal_scopes)
-        if self.use_sharepoint:
-            scopes += [s for s in self.graph_scopes if s not in scopes]
-        return scopes
-
-    @property
-    def azure_blob_account_url(self) -> str | None:
-        if self.azure_blob_endpoint:
-            return self.azure_blob_endpoint
-        if self.azure_account_name:
-            return f"https://{self.azure_account_name}.blob.core.windows.net"
-        return None
+        """Scopes requested during Microsoft sign-in (app session profile only)."""
+        return list(self.msal_scopes)
 
 
 @lru_cache

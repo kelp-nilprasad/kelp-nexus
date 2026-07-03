@@ -18,7 +18,9 @@ Notes:
 - In production prefer **Azure Database for PostgreSQL Flexible Server** (with the
   `vector` extension enabled) over the in-cluster StatefulSet; point
   `DATABASE_URL` at it and delete `02-postgres.yaml`.
-- Storage uses **Azure Blob**; the in-cluster pods need network egress to the
-  storage account (or a private endpoint).
+- Storage uses **SharePoint** (Microsoft Graph, app-only token); the in-cluster
+  pods need network egress to `graph.microsoft.com` and `login.microsoftonline.com`,
+  and the Entra app must hold the **application** permission `Sites.ReadWrite.All`
+  (admin-consented).
 - The migrate Job should run as a Helm/Argo pre-upgrade hook so schema changes
   land before new API pods start.

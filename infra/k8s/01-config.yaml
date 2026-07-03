@@ -7,12 +7,15 @@ data:
   ENVIRONMENT: "production"
   API_V1_PREFIX: "/api/v1"
   CORS_ORIGINS: '["https://kelp.internal.example.com"]'
-  AZURE_BLOB_CONTAINER: "reports"
   DEV_LOGIN: "false"
   ENABLE_AI: "false"
   AI_MODEL: "claude-opus-4-8"
   EMBEDDING_DIM: "1536"
   API_INTERNAL_URL: "http://kelp-api:8000"
+  # --- SharePoint storage (Microsoft Graph, app-only) ---
+  SHAREPOINT_SITE: "fullvaluetech.sharepoint.com:/sites/Kelp-Nexus"
+  SHAREPOINT_ROOT_FOLDER: "reports"
+  GRAPH_SCOPES: '["Sites.ReadWrite.All"]'
 ---
 apiVersion: v1
 kind: Secret
@@ -24,9 +27,10 @@ stringData:
   # Replace these in a real cluster (use a sealed-secret / external secret store).
   DATABASE_URL: "postgresql+psycopg://kelp:kelp@kelp-postgres:5432/kelp_nexus"
   JWT_SECRET: "REPLACE_WITH_STRONG_SECRET"
-  AZURE_STORAGE_CONNECTION_STRING: "REPLACE_WITH_AZURE_BLOB_CONNECTION_STRING"
-  AZURE_TENANT_ID: ""
-  AZURE_CLIENT_ID: ""
-  AZURE_CLIENT_SECRET: ""
+  # Entra app registration — required for SharePoint storage (app-only Graph).
+  # The app needs APPLICATION permission Sites.ReadWrite.All with admin consent.
+  MSAL_CLIENT_ID: "REPLACE_WITH_ENTRA_APP_CLIENT_ID"
+  MSAL_TENANT_ID: "REPLACE_WITH_ENTRA_TENANT_ID"
+  MSAL_CLIENT_SECRET: "REPLACE_WITH_ENTRA_CLIENT_SECRET"
   ANTHROPIC_API_KEY: ""
   POSTGRES_PASSWORD: "kelp"
