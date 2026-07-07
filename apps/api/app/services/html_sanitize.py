@@ -19,6 +19,12 @@ except Exception:  # pragma: no cover - css extra not installed
 # Tags whose entire contents must be discarded (not just the tag).
 DANGEROUS_TAGS = ["script", "iframe", "object", "embed", "form", "noscript", "template"]
 
+# Structural "chrome" tags removed *with their contents* on ingest. Authored
+# reports often carry a top <header> banner (file name / version / date) that
+# duplicates the metadata the portal already renders around the report, so we
+# drop it from the stored HTML. Removed here, not for security.
+STRIPPED_TAGS = ["header"]
+
 # Permissive enough for rich technical reports, but no script/iframe/object/etc.
 ALLOWED_TAGS = sorted(
     set(bleach.sanitizer.ALLOWED_TAGS)
@@ -29,7 +35,8 @@ ALLOWED_TAGS = sorted(
         "table", "thead", "tbody", "tfoot", "tr", "th", "td", "caption", "colgroup", "col",
         "img", "figure", "figcaption", "picture",
         "strong", "em", "b", "i", "u", "s", "sup", "sub", "mark", "small",
-        "a", "section", "article", "header", "footer", "nav", "aside", "main",
+        # <header> intentionally omitted — stripped with its contents (see STRIPPED_TAGS).
+        "a", "section", "article", "footer", "nav", "aside", "main",
         "style",  # inline <style> allowed; scoped inside the sandboxed iframe
     }
 )
@@ -46,9 +53,9 @@ ALLOWED_PROTOCOLS = ["http", "https", "mailto", "data"]
 
 
 def sanitize_html(raw: str) -> str:
-    # First drop dangerous tags *and their text* (bleach would keep the text).
+    # First drop dangerous + chrome tags *and their text* (bleach would keep the text).
     soup = BeautifulSoup(raw, "html.parser")
-    for tag in soup(DANGEROUS_TAGS):
+    for tag in soup(DANGEROUS_TAGS + STRIPPED_TAGS):
         tag.decompose()
     cleaned = bleach.clean(
         str(soup),

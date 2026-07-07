@@ -100,7 +100,14 @@ export default function CollectionPage({ params }: { params: { slug: string } })
         </div>
         {isOwner && (
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setCreatingSub((v) => !v)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSubName("");
+                setCreatingSub((v) => !v);
+              }}
+            >
               <FolderPlus className="h-4 w-4" /> New subfolder
             </Button>
             <Button
@@ -119,15 +126,32 @@ export default function CollectionPage({ params }: { params: { slug: string } })
         <Card>
           <CardContent className="flex gap-2 pt-5">
             <Input
+              autoFocus
               placeholder="Subfolder name"
               value={subName}
               onChange={(e) => setSubName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && subName.trim()) createSubfolder.mutate();
+                if (e.key === "Escape") {
+                  setSubName("");
+                  setCreatingSub(false);
+                }
+              }}
             />
             <Button
               disabled={!subName.trim() || createSubfolder.isPending}
               onClick={() => createSubfolder.mutate()}
             >
               <Plus className="h-4 w-4" /> Create
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSubName("");
+                setCreatingSub(false);
+              }}
+            >
+              <X className="h-4 w-4" /> Cancel
             </Button>
           </CardContent>
         </Card>

@@ -31,3 +31,17 @@ def test_keeps_safe_formatting():
 def test_extract_text_drops_markup():
     text = extract_text("<h1>Hi</h1><p>there <b>world</b></p>")
     assert text == "Hi there world"
+
+
+def test_strips_header_banner_with_contents():
+    # Authored reports carry a top <header> metadata banner (name/version/date);
+    # it must be removed along with its text, leaving the body intact.
+    dirty = (
+        "<header><div>KELP · STANDARD GUIDELINES</div>"
+        "<span>SG-SKILL · V1.0 · JULY 2026</span></header>"
+        "<main><h1>Skills are packages</h1><p>Body kept.</p></main>"
+    )
+    clean = sanitize_html(dirty)
+    assert "<header>" not in clean
+    assert "SG-SKILL" not in clean and "STANDARD GUIDELINES" not in clean
+    assert "Skills are packages" in clean and "Body kept." in clean

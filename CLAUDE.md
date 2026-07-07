@@ -93,7 +93,9 @@ There is no Azure Blob backend — storage is SharePoint-only.
 **Search** (`services/search.py`): Postgres FTS over a maintained `search_vector` tsvector
 (GIN-indexed, populated by a DB trigger fed from title/summary/description/project and
 `content_text`). Keyword queries rank via `websearch_to_tsquery`/`ts_rank`; empty query falls
-back to filtered recency. Semantic/pgvector search is stubbed for a later phase.
+back to filtered recency. Semantic/pgvector search is stubbed for a later phase. Likewise
+"related reports" (`routers/related.py`) is **metadata-based today, swappable for embeddings
+later** — keep the interface stable if you add vector similarity.
 
 **Reports are addressed by slug OR uuid** — helpers (`_get_or_404`) try `uuid.UUID(...)` then
 fall back to slug. Routers eager-load relations via shared `selectinload` tuples to avoid N+1.

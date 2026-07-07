@@ -2,8 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Star, Github, ExternalLink, PlayCircle, FileText, History } from "lucide-react";
+import {
+  Star,
+  Github,
+  ExternalLink,
+  PlayCircle,
+  FileText,
+  History,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { useCurrentUser } from "@/lib/auth";
 import { ReportViewer } from "@/components/report-viewer";
@@ -19,8 +29,10 @@ import { formatDate, relativeTime } from "@/lib/utils";
 export default function ReportDetailPage({ params }: { params: { slug: string } }) {
   const { slug } = params;
   const qc = useQueryClient();
+  const router = useRouter();
   const { user } = useCurrentUser();
   const [comment, setComment] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data: report, isLoading } = useQuery({
     queryKey: ["report", slug],
@@ -54,8 +66,23 @@ export default function ReportDetailPage({ params }: { params: { slug: string } 
     },
   });
 
+  const deleteReport = useMutation({
+    mutationFn: () => api.deleteReport(slug),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["reports"] });
+      qc.invalidateQueries({ queryKey: ["favorites"] });
+      router.push("/dashboard");
+    },
+  });
+
   if (isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!report) return <p className="text-muted-foreground">Report not found.</p>;
+
+  // Edit: author, editor, or admin. Delete: author or admin (mirrors the API's RBAC).
+  const canEdit =
+    !!user &&
+    (user.id === report.author.id || user.role === "admin" || user.role === "editor");
+  const canDelete = !!user && (user.id === report.author.id || user.role === "admin");
 
   const latestVersion = [...report.versions].sort((a, b) => b.version - a.version)[0];
   const mediaKind =
@@ -65,6 +92,45 @@ export default function ReportDetailPage({ params }: { params: { slug: string } 
 
   return (
     <div className="space-y-8">
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !deleteReport.isPending && setConfirmDelete(false)}
+        >
+          <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <CardHeader>
+              <CardTitle>Delete this report?</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{report.title}</span> and all its
+                versions will be permanently removed. This cannot be undone.
+              </p>
+              {deleteReport.isError && (
+                <p className="text-sm text-destructive">
+                  Couldn&apos;t delete the report. You may not have permission.
+                </p>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={deleteReport.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => deleteReport.mutate()}
+                  disabled={deleteReport.isPending}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleteReport.isPending ? "Deleting…" : "Delete"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
       <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
         <div className="space-y-6">
           {/* Header */}
@@ -92,14 +158,34 @@ export default function ReportDetailPage({ params }: { params: { slug: string } 
                 </div>
               </Link>
               {user && (
-                <Button
-                  variant={isFav ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => toggleFav.mutate()}
-                >
-                  <Star className={isFav ? "h-4 w-4 fill-current" : "h-4 w-4"} />
-                  {isFav ? "Favorited" : "Favorite"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={isFav ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => toggleFav.mutate()}
+                  >
+                    <Star className={isFav ? "h-4 w-4 fill-current" : "h-4 w-4"} />
+                    {isFav ? "Favorited" : "Favorite"}
+                  </Button>
+                  {canEdit && (
+                    <Link
+                      href={`/reports/${slug}/edit`}
+                      className={buttonVariants({ variant: "outline", size: "sm" })}
+                    >
+                      <Pencil className="h-4 w-4" /> Edit
+                    </Link>
+                  )}
+                  {canDelete && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfirmDelete(true)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" /> Delete
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           </div>

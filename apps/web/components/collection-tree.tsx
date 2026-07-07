@@ -12,6 +12,8 @@ import {
   FolderTree,
   Plus,
   FileText,
+  Upload,
+  X,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Collection } from "@/lib/types";
@@ -83,7 +85,14 @@ export function CollectionTree() {
             </span>
           )}
         </CardTitle>
-        <Button variant="outline" size="sm" onClick={() => setCreatingRoot((v) => !v)}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setRootName("");
+            setCreatingRoot((v) => !v);
+          }}
+        >
           <FolderPlus className="h-4 w-4" /> New
         </Button>
       </CardHeader>
@@ -95,7 +104,13 @@ export function CollectionTree() {
               placeholder="Collection name"
               value={rootName}
               onChange={(e) => setRootName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && rootName.trim() && createRoot.mutate()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && rootName.trim()) createRoot.mutate();
+                if (e.key === "Escape") {
+                  setRootName("");
+                  setCreatingRoot(false);
+                }
+              }}
               className="h-8"
             />
             <Button
@@ -104,6 +119,18 @@ export function CollectionTree() {
               onClick={() => createRoot.mutate()}
             >
               {createRoot.isPending ? "…" : "Add"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Cancel"
+              title="Cancel"
+              onClick={() => {
+                setRootName("");
+                setCreatingRoot(false);
+              }}
+            >
+              <X className="h-4 w-4" />
             </Button>
           </div>
         )}
@@ -223,9 +250,22 @@ function TreeRow({
           </span>
         )}
 
+        {/* upload here (on hover) */}
+        <Link
+          href={`/upload?collection=${node.id}`}
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-primary group-hover:opacity-100"
+          aria-label={`Upload a report to ${node.name}`}
+          title="Upload here"
+        >
+          <Upload className="h-3.5 w-3.5" />
+        </Link>
+
         {/* add subfolder (on hover) */}
         <button
-          onClick={() => setAddingSub((v) => !v)}
+          onClick={() => {
+            setSubName("");
+            setAddingSub((v) => !v);
+          }}
           className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-primary group-hover:opacity-100"
           aria-label="Add subfolder"
           title="Add subfolder"
@@ -241,7 +281,13 @@ function TreeRow({
             placeholder="Subfolder name"
             value={subName}
             onChange={(e) => setSubName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && subName.trim() && createSub.mutate()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && subName.trim()) createSub.mutate();
+              if (e.key === "Escape") {
+                setSubName("");
+                setAddingSub(false);
+              }
+            }}
             className="h-7 text-sm"
           />
           <Button
@@ -251,6 +297,19 @@ function TreeRow({
             onClick={() => createSub.mutate()}
           >
             {createSub.isPending ? "…" : "Add"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2"
+            aria-label="Cancel"
+            title="Cancel"
+            onClick={() => {
+              setSubName("");
+              setAddingSub(false);
+            }}
+          >
+            <X className="h-3.5 w-3.5" />
           </Button>
         </div>
       )}
