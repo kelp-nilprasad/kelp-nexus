@@ -140,7 +140,6 @@ export default function ReportDetailPage({ params }: { params: { slug: string } 
               <Badge variant={report.status === "published" ? "success" : "muted"}>
                 {report.status}
               </Badge>
-              <Badge variant="outline">{report.visibility}</Badge>
               <Badge variant="muted">v{report.current_version}</Badge>
             </div>
             <h1 className="text-3xl font-bold leading-tight">{report.title}</h1>

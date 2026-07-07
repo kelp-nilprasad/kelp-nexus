@@ -8,6 +8,7 @@ from __future__ import annotations
 from slugify import slugify
 from sqlalchemy import select
 
+from app.core.config import settings
 from app.db.models.report import (
     Category,
     Report,
@@ -77,6 +78,13 @@ REPORTS = [
 
 
 def run() -> None:
+    # Opt-in only. Without SEED_DEMO_DATA=true this is a no-op, so a production
+    # boot can never (re)create the demo users/reports — even if the deletion
+    # of prior demo data removed the admin@kelp.dev idempotency marker below.
+    if not settings.seed_demo_data:
+        print("SEED_DEMO_DATA is not set; skipping demo seed.")
+        return
+
     db = SessionLocal()
     try:
         if db.scalar(select(User).where(User.email == "admin@kelp.dev")):

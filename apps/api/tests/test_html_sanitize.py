@@ -33,15 +33,49 @@ def test_extract_text_drops_markup():
     assert text == "Hi there world"
 
 
-def test_strips_header_banner_with_contents():
-    # Authored reports carry a top <header> metadata banner (name/version/date);
-    # it must be removed along with its text, leaving the body intact.
+def test_preserves_css_child_combinator_in_style():
+    # <style> is a raw-text element: CSS must be emitted verbatim, never
+    # entity-escaped. A `>` combinator turning into `&gt;` silently kills the rule.
+    dirty = (
+        "<style>.plain>div{display:grid;grid-template-columns:168px minmax(0,1fr)}"
+        " .a>b{color:red}</style><h1>Hi</h1>"
+    )
+    clean = sanitize_html(dirty)
+    assert "&gt;" not in clean
+    assert ".plain>div" in clean and ".a>b" in clean
+
+
+def test_preserves_multiple_style_blocks_and_special_chars():
+    dirty = (
+        "<style>a>b{x:1}</style><p>mid</p>"
+        "<style>@media(max-width:600px){.g{display:none}} li:nth-child(2n){color:blue}</style>"
+    )
+    clean = sanitize_html(dirty)
+    assert "a>b{x:1}" in clean
+    assert "max-width:600px" in clean and "nth-child(2n)" in clean
+    assert "KELPSTYLE" not in clean  # no placeholder token leaks into output
+
+
+def test_css_preservation_does_not_weaken_sanitization():
+    # Restoring <style> verbatim must not reopen an injection path.
+    dirty = (
+        "<style>.a>b{color:red}</style><script>steal()</script>"
+        "<p onclick=\"evil()\">t</p><style>.c>d{x:1}</style>"
+    )
+    clean = sanitize_html(dirty)
+    assert "steal()" not in clean and "<script" not in clean
+    assert "onclick" not in clean
+    assert ".a>b" in clean and ".c>d" in clean
+
+
+def test_preserves_document_header_as_authored():
+    # We must NOT strip the document's own <header> — reports render as authored.
     dirty = (
         "<header><div>KELP · STANDARD GUIDELINES</div>"
         "<span>SG-SKILL · V1.0 · JULY 2026</span></header>"
-        "<main><h1>Skills are packages</h1><p>Body kept.</p></main>"
+        "<main><h1>Skills are packages</h1><p>Body.</p></main>"
     )
     clean = sanitize_html(dirty)
-    assert "<header>" not in clean
-    assert "SG-SKILL" not in clean and "STANDARD GUIDELINES" not in clean
-    assert "Skills are packages" in clean and "Body kept." in clean
+    assert "<header>" in clean
+    assert "SG-SKILL" in clean and "STANDARD GUIDELINES" in clean
+    assert "Skills are packages" in clean
