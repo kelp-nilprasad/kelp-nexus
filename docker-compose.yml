@@ -1,85 +1,102 @@
 name: kelp-nexus
 
 services:
-  db:
-    image: pgvector/pgvector:pg16
-    environment:
-      POSTGRES_USER: kelp
-      POSTGRES_PASSWORD: kelp
-      POSTGRES_DB: kelp_nexus
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    command: "azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --skipApiVersionCheck"
     ports:
-      # Override KELP_DB_PORT if 5432 is taken locally (e.g. KELP_DB_PORT=5544).
-      # In-compose traffic uses the `db` service name on 5432 regardless.
-      - "${KELP_DB_PORT:-5432}:5432"
+      - "10000:10000"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kelp -d kelp_nexus"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      - azurite:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
 
   api:
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.api
     depends_on:
-      db:
-        condition: service_healthy
-    # Secrets (MSAL client id/secret/tenant, etc.) are injected at RUNTIME from
-    # apps/api/.env — never baked into the image (see .dockerignore).
-    # `environment:` below overrides any same-named key from this file, so the
-    # prod-specific values win over the local-dev defaults in apps/api/.env.
+      azurite:
+        condition: service_started
     env_file:
       - apps/api/.env
     environment:
-      # Point at your server's Postgres by exporting DATABASE_URL; falls back to
-      # the bundled `db` service for a self-contained stack.
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://kelp:kelp@db:5432/kelp_nexus}
-      # Set a strong JWT_SECRET in the deploy environment.
-      JWT_SECRET: ${JWT_SECRET:-dev-insecure-change-me}
-      # production => Secure cookies (works because nginx terminates TLS).
-      ENVIRONMENT: ${ENVIRONMENT:-production}
-      WEB_BASE_URL: https://kelpllm.kelpglobal.co.in:6101
+      DATABASE_URL: postgresql+psycopg://kelpv2:7RozN#prEEyrIy#HB!W@postgres18:5432/kelp_nexus
+      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+      JWT_SECRET: dev-insecure-change-me
+      DEV_LOGIN: "true"
+      ENVIRONMENT: development
       CORS_ORIGINS: '["https://kelpllm.kelpglobal.co.in:6101"]'
-      # MSAL/Entra: the redirect URI must match a Web redirect URI registered in
-      # the Entra app registration exactly (public origin, /api/v1 path, port 6101).
-      # Overrides the localhost value in apps/api/.env.
-      MSAL_REDIRECT_URI: https://kelpllm.kelpglobal.co.in:6101/api/v1/auth/callback
+    networks:
+      - default
+      - postgres_default
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 384M
     ports:
       - "8000:8000"
-    # Migrate, seed, then serve.
     command: >
       sh -c "alembic upgrade head &&
              python -m app.db.seed &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
 
   web:
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.web
+      args:
+        API_INTERNAL_URL: http://api:8000
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     environment:
       API_INTERNAL_URL: http://api:8000
-    # No host port: traffic now enters through nginx. Expose it again here if you
-    # need to reach the app directly without TLS.
     expose:
       - "3000"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
 
   nginx:
     image: nginx:1.27-alpine
     depends_on:
       - web
     ports:
-      # Public HTTPS entrypoint: https://kelpllm.kelpglobal.co.in:6101
       - "6101:443"
     volumes:
       - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      # Existing certs. Point KELP_CERTS_DIR at the host folder holding
-      # fullchain.pem + privkey.pem (defaults to ./infra/nginx/certs).
       - ${KELP_CERTS_DIR:-./infra/nginx/certs}:/etc/nginx/certs:ro
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 32M
+
+networks:
+  default:
+    driver: bridge
+  postgres_default:
+    external: true
 
 volumes:
   pgdata:
+  azurite:
+
