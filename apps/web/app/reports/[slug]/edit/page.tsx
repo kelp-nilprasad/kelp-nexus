@@ -35,7 +35,6 @@ export default function EditReportPage({ params }: { params: { slug: string } })
     project: "",
     category_id: "",
     status: "published",
-    visibility: "internal",
     tags: "",
     technologies: "",
     github_repo: "",
@@ -57,7 +56,6 @@ export default function EditReportPage({ params }: { params: { slug: string } })
       project: report.project ?? "",
       category_id: report.category?.id ?? "",
       status: report.status ?? "published",
-      visibility: report.visibility ?? "internal",
       tags: (report.tags ?? []).map((t) => t.name).join(", "),
       technologies: (report.technologies ?? []).map((t) => t.name).join(", "),
       github_repo: report.github_repo ?? "",
@@ -115,7 +113,6 @@ export default function EditReportPage({ params }: { params: { slug: string } })
         project: form.project || null,
         category_id: form.category_id || null,
         status: form.status,
-        visibility: form.visibility,
         github_repo: form.github_repo || null,
         demo_url: form.demo_url || null,
         tags: csvToList(form.tags),
@@ -242,18 +239,6 @@ export default function EditReportPage({ params }: { params: { slug: string } })
                 <option value="draft">Draft</option>
                 <option value="published">Published</option>
                 <option value="archived">Archived</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Visibility</label>
-              <select
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={form.visibility}
-                onChange={(e) => set("visibility", e.target.value)}
-              >
-                <option value="public">Public</option>
-                <option value="internal">Internal</option>
-                <option value="private">Private</option>
               </select>
             </div>
           </CardContent>

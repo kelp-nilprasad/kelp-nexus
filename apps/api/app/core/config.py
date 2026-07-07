@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     ai_model: str = "claude-opus-4-8"
     embedding_dim: int = 1536
     enable_ai: bool = False
+    # Demo/dummy seed data must be explicitly opted into. Off by default so a
+    # deploy never (re)creates the @kelp.dev demo users/reports in production.
+    seed_demo_data: bool = False
 
     @model_validator(mode="after")
     def _assemble_database_url(self) -> "Settings":

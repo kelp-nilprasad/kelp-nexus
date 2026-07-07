@@ -6,6 +6,8 @@ never trusted.
 """
 from __future__ import annotations
 
+import secrets
+
 import bleach
 from bs4 import BeautifulSoup
 
@@ -17,13 +19,9 @@ except Exception:  # pragma: no cover - css extra not installed
     _css_sanitizer = None
 
 # Tags whose entire contents must be discarded (not just the tag).
+# Security only — we do NOT strip any of the document's own visible content
+# (e.g. <header>): uploaded reports render as authored.
 DANGEROUS_TAGS = ["script", "iframe", "object", "embed", "form", "noscript", "template"]
-
-# Structural "chrome" tags removed *with their contents* on ingest. Authored
-# reports often carry a top <header> banner (file name / version / date) that
-# duplicates the metadata the portal already renders around the report, so we
-# drop it from the stored HTML. Removed here, not for security.
-STRIPPED_TAGS = ["header"]
 
 # Permissive enough for rich technical reports, but no script/iframe/object/etc.
 ALLOWED_TAGS = sorted(
@@ -35,8 +33,7 @@ ALLOWED_TAGS = sorted(
         "table", "thead", "tbody", "tfoot", "tr", "th", "td", "caption", "colgroup", "col",
         "img", "figure", "figcaption", "picture",
         "strong", "em", "b", "i", "u", "s", "sup", "sub", "mark", "small",
-        # <header> intentionally omitted — stripped with its contents (see STRIPPED_TAGS).
-        "a", "section", "article", "footer", "nav", "aside", "main",
+        "a", "section", "article", "header", "footer", "nav", "aside", "main",
         "style",  # inline <style> allowed; scoped inside the sandboxed iframe
     }
 )
@@ -53,10 +50,25 @@ ALLOWED_PROTOCOLS = ["http", "https", "mailto", "data"]
 
 
 def sanitize_html(raw: str) -> str:
-    # First drop dangerous + chrome tags *and their text* (bleach would keep the text).
+    # First drop dangerous tags *and their text* (bleach would keep the text).
     soup = BeautifulSoup(raw, "html.parser")
-    for tag in soup(DANGEROUS_TAGS + STRIPPED_TAGS):
+    for tag in soup(DANGEROUS_TAGS):
         tag.decompose()
+
+    # <style> is a raw-text element: its CSS must be emitted verbatim. bleach
+    # (html5lib) instead escapes the *contents*, turning `.a>b{}` into `.a&gt;b{}`
+    # and silently breaking any rule using > < or &. Swap each block's CSS for an
+    # opaque placeholder before bleach, then restore it byte-for-byte afterward.
+    # This is safe: parsed <style> text can never contain "</style>", so there is
+    # no way to break out of the element when we re-insert it.
+    boundary = secrets.token_hex(16)
+    placeholders: list[tuple[str, str]] = []
+    for i, style in enumerate(soup.find_all("style")):
+        css = style.string or ""
+        token = f"KELPSTYLE{boundary}{i}"
+        placeholders.append((token, css))
+        style.string = token
+
     cleaned = bleach.clean(
         str(soup),
         tags=ALLOWED_TAGS,
@@ -66,6 +78,9 @@ def sanitize_html(raw: str) -> str:
         strip=True,
         strip_comments=True,
     )
+
+    for token, css in placeholders:
+        cleaned = cleaned.replace(token, css)
     return cleaned
 
 

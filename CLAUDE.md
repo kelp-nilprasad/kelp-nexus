@@ -17,7 +17,7 @@ workspace runner** — each app is built and run on its own.
 cd apps/api
 pip install -e ".[dev]"
 alembic upgrade head            # run migrations
-python -m app.db.seed           # seed demo data + users
+SEED_DEMO_DATA=true python -m app.db.seed   # seed demo data (no-op unless flag set)
 uvicorn app.main:app --reload   # serve on :8000  (Swagger at /docs)
 
 pytest                          # full suite
@@ -44,7 +44,7 @@ server starts returning 500s. If that happens: stop dev, `rm -rf .next`, restart
 
 ### Full stack (Docker)
 ```bash
-docker compose up --build       # web :3000, api :8000; API auto-migrates + seeds on boot
+docker compose up --build       # web :3000, api :8000; API auto-migrates on boot (does NOT seed)
 ```
 
 ## Architecture (the non-obvious parts)

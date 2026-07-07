@@ -26,7 +26,6 @@ function UploadForm() {
     project: "",
     category_id: "",
     status: "published",
-    visibility: "internal",
     tags: "",
     technologies: "",
     github_repo: "",
@@ -95,7 +94,6 @@ function UploadForm() {
         project: form.project || null,
         category_id: form.category_id || null,
         status: form.status,
-        visibility: form.visibility,
         github_repo: form.github_repo || null,
         demo_url: form.demo_url || null,
         tags: tagList,
@@ -228,18 +226,6 @@ function UploadForm() {
                 <option value="draft">Draft</option>
                 <option value="published">Published</option>
                 <option value="archived">Archived</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Visibility</label>
-              <select
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={form.visibility}
-                onChange={(e) => set("visibility", e.target.value)}
-              >
-                <option value="public">Public</option>
-                <option value="internal">Internal</option>
-                <option value="private">Private</option>
               </select>
             </div>
           </CardContent>
