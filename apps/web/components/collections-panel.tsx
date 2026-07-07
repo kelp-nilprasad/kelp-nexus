@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Folder, FolderPlus, Plus } from "lucide-react";
+import { Folder, FolderPlus, Plus, Upload } from "lucide-react";
 import { api } from "@/lib/api";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
@@ -63,22 +63,32 @@ export function CollectionsPanel() {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {collections?.map((c) => (
-          <Link key={c.id} href={`/collections/${c.slug}`}>
-            <Card className="h-full transition-shadow hover:shadow-md">
-              <CardContent className="flex items-center gap-3 pt-5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
-                  <Folder className="h-5 w-5 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{c.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {c.report_count} {c.report_count === 1 ? "report" : "reports"}
-                    {c.subfolder_count > 0 && ` · ${c.subfolder_count} folders`}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+          <div key={c.id} className="group relative">
+            <Link href={`/collections/${c.slug}`}>
+              <Card className="h-full transition-shadow hover:shadow-md">
+                <CardContent className="flex items-center gap-3 pt-5 pr-10">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
+                    <Folder className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {c.report_count} {c.report_count === 1 ? "report" : "reports"}
+                      {c.subfolder_count > 0 && ` · ${c.subfolder_count} folders`}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link
+              href={`/upload?collection=${c.id}`}
+              className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition hover:bg-primary/10 hover:text-primary focus-visible:opacity-100 group-hover:opacity-100"
+              aria-label={`Upload a report to ${c.name}`}
+              title="Upload here"
+            >
+              <Upload className="h-4 w-4" />
+            </Link>
+          </div>
         ))}
         {!collections?.length && (
           <p className="text-sm text-muted-foreground">
